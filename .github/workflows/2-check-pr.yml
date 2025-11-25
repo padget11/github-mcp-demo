@@ -136,15 +136,17 @@ jobs:
 
       - name: Comment - exercise complete
         run: |
+          body="## 🎉 Congratulations! Exercise Complete!
+
+          You've successfully:
+          - ✅ Fixed the CSS bug
+          - ✅ Created a properly linked Pull Request
+          - ✅ Completed the GitHub MCP workflow!
+
+          You can now merge your PR and close this issue. Great work! 🚀"
+          
           gh issue comment ${{ needs.find_exercise.outputs.issue-number }} \
-            --body "## 🎉 Congratulations! Exercise Complete!
-
-You've successfully:
-- ✅ Fixed the CSS bug
-- ✅ Created a properly linked Pull Request
-- ✅ Completed the GitHub MCP workflow!
-
-You can now merge your PR and close this issue. Great work! 🚀"
+            --body "$body"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
