@@ -1,0 +1,56 @@
+name: Step 0 - Welcome
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  welcome:
+    name: Welcome to the GitHub MCP Workflow Demo
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check if welcome issue exists
+        id: check-issue
+        run: |
+          issue_number=$(gh issue list --label "welcome" --state open --json number --jq '.[0].number')
+          if [ -z "$issue_number" ]; then
+            echo "exists=false" >> $GITHUB_OUTPUT
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create welcome issue
+        if: steps.check-issue.outputs.exists == 'false'
+        id: create-issue
+        run: |
+          issue_url=$(gh issue create \
+            --title "Welcome to GitHub MCP Workflow Demo! 🎉" \
+            --body-file responses/00-welcome.md \
+            --label "welcome")
+          issue_number=$(echo $issue_url | grep -o '[0-9]*$')
+          echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+          echo "Created issue #$issue_number"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on existing issue
+        if: steps.check-issue.outputs.exists == 'true'
+        run: |
+          gh issue comment ${{ steps.check-issue.outputs.issue_number }} \
+            --body "👋 Welcome back! The exercise is ready to continue. Follow the instructions above to get started!"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

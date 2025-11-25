@@ -1,0 +1,72 @@
+name: Step 1 - Validate CSS Fix
+
+on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - 'index.html'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  validate-css-fix:
+    name: Check CSS Link Correction
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Find exercise issue
+        id: find-issue
+        run: |
+          issue_number=$(gh issue list --label "step-1" --state open --json number --jq '.[0].number')
+          if [ -z "$issue_number" ]; then
+            echo "No step-1 issue found, skipping validation"
+            echo "found=false" >> $GITHUB_OUTPUT
+          else
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate CSS link fix
+        if: steps.find-issue.outputs.found == 'true'
+        id: validate
+        run: |
+          if grep -q 'href="styles.css"' index.html; then
+            echo "valid=true" >> $GITHUB_OUTPUT
+            echo "✅ CSS link is correct!"
+          else
+            echo "valid=false" >> $GITHUB_OUTPUT
+            echo "❌ CSS link still has typo"
+          fi
+
+      - name: Success - CSS fixed
+        if: steps.find-issue.outputs.found == 'true' && steps.validate.outputs.valid == 'true'
+        run: |
+          gh issue comment ${{ steps.find-issue.outputs.issue_number }} \
+            --body-file responses/01-success-css-fixed.md
+          gh issue close ${{ steps.find-issue.outputs.issue_number }}
+          
+          # Create the next step issue
+          gh issue create \
+            --title "Step 2: Create a Pull Request 🔀" \
+            --body-file responses/02-create-pr.md \
+            --label "step-2"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Failure - CSS still broken
+        if: steps.find-issue.outputs.found == 'true' && steps.validate.outputs.valid == 'false'
+        run: |
+          gh issue comment ${{ steps.find-issue.outputs.issue_number }} \
+            --body-file responses/01-error-css-not-fixed.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
