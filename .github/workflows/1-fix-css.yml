@@ -145,3 +145,10 @@ jobs:
           gh workflow enable 2-check-pr.yml
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update_readme:
+    name: Update README
+    needs: [post_next_step]
+    uses: ./.github/workflows/update-readme.yml
+    with:
+      step: 2

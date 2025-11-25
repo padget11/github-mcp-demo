@@ -75,3 +75,10 @@ jobs:
           gh workflow enable 1-fix-css.yml
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update_readme:
+    name: Update README
+    needs: [start_exercise]
+    uses: ./.github/workflows/update-readme.yml
+    with:
+      step: 1
