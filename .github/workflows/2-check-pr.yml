@@ -21,6 +21,9 @@ jobs:
       issue-number: ${{ steps.find-issue.outputs.issue_number }}
       
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Find exercise issue
         id: find-issue
         run: |
@@ -73,8 +76,7 @@ jobs:
       - name: Check PR description for issue link
         id: check-link
         run: |
-          pr_body="${{ github.event.pull_request.body }}"
-          if echo "$pr_body" | grep -qiE "(fixes|closes|resolves) #[0-9]+"; then
+          if echo '${{ github.event.pull_request.body }}' | grep -qiE "(fixes|closes|resolves) #[0-9]+"; then
             echo "linked=true" >> $GITHUB_OUTPUT
           else
             echo "linked=false" >> $GITHUB_OUTPUT

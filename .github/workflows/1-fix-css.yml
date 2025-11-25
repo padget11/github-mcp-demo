@@ -21,6 +21,9 @@ jobs:
       issue-number: ${{ steps.find-issue.outputs.issue_number }}
       
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Find exercise issue
         id: find-issue
         run: |
