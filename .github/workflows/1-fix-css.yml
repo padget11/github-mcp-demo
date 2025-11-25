@@ -113,10 +113,12 @@ jobs:
 
       - name: Comment - step finished
         run: |
-          gh issue comment ${{ needs.find_exercise.outputs.issue-number }} \
-            --body "## ✅ Step 1 Complete!
+          body="## ✅ Step 1 Complete!
 
-Great job! You've successfully fixed the CSS link. Let's move on to the next step..."
+          Great job! You've successfully fixed the CSS link. Let's move on to the next step..."
+          
+          gh issue comment ${{ needs.find_exercise.outputs.issue-number }} \
+            --body "$body"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
