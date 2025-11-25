@@ -25,7 +25,7 @@ jobs:
       - name: Find exercise issue
         id: find-issue
         run: |
-          issue_number=$(gh issue list --label "step-1" --state open --json number --jq '.[0].number')
+          issue_number=$(gh issue list --search "Step 1: Fix the CSS Bug in:title" --state open --json number --jq '.[0].number')
           if [ -z "$issue_number" ]; then
             echo "No step-1 issue found, skipping validation"
             echo "found=false" >> $GITHUB_OUTPUT
@@ -58,8 +58,7 @@ jobs:
           # Create the next step issue
           gh issue create \
             --title "Step 2: Create a Pull Request 🔀" \
-            --body-file responses/02-create-pr.md \
-            --label "step-2"
+            --body-file responses/02-create-pr.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
