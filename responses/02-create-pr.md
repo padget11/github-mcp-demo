@@ -1,44 +1,51 @@
-## Step 2: Create a Pull Request 🔀
+---
 
-Awesome work fixing the CSS bug! Now it's time to get your changes reviewed and merged using a **Pull Request (PR)**.
+## Step 2: Create a Pull Request with MCP 🔀
 
 ### 🎯 Your Mission
 
-Create a Pull Request to merge your fix into the `main` branch, following professional development practices.
+Use **GitHub Copilot with MCP tools** to create a professional Pull Request that links to an issue.
+
+### 🧠 Learning Focus
+
+This step teaches you how to:
+- Use Copilot to create GitHub issues via MCP
+- Create Pull Requests directly from VS Code
+- Link PRs to issues for automatic tracking
 
 ### 📋 Instructions
 
-**Using GitHub MCP in VS Code:**
+**Part 1: Create a GitHub Issue (Optional)**
 
-Ask GitHub Copilot to help you:
-1. **Create a Pull Request** from your current branch to `main`
-2. **Write a descriptive title** like "Fix CSS stylesheet link typo"
-3. **Link to the original issue** in the PR description using `Fixes #<issue-number>` or `Closes #<issue-number>`
-
-**Example prompt for Copilot:**
+If you want to practice the full workflow, ask Copilot:
 ```
-Can you create a pull request from this branch to main? 
-Title it "Fix CSS stylesheet link typo" and include "Fixes #X" 
-in the description where X is the issue number for the CSS bug.
+Can you create a GitHub issue to track this CSS bug? Title it "Fix CSS stylesheet link typo" and describe the problem - that the CSS file reference in index.html had a typo (styls.css instead of styles.css).
 ```
 
-### ✅ Success Criteria
-
-Your PR should:
-- Merge your hotfix branch → `main` branch
-- Have a clear, descriptive title
-- Include `Fixes #<number>` or `Closes #<number>` in the description to auto-link the issue
-- Contain the CSS fix (changing `styls.css` to `styles.css`)
-
-### 🎓 What You're Learning
-
-- How to create PRs using GitHub MCP tools
-- Best practices for PR titles and descriptions
-- Automatic issue linking with keywords
-- Code review workflow preparation
+**Expected:** Copilot will use `mcp_github_issue_write` to create the issue and give you the issue number.
 
 ---
 
-💡 **Pro tip**: The `Fixes #<number>` keyword will automatically close the referenced issue when the PR is merged!
+**Part 2: Create a Pull Request**
 
-Once you create your PR, I'll validate it and guide you to the final step!
+Ask Copilot:
+```
+Can you create a pull request from this branch to main? Title it "Fix CSS stylesheet link typo" and include "Fixes #X" in the description where X is the issue number.
+```
+
+*(Replace X with the issue number from Part 1, or use any existing issue)*
+
+**Expected:** Copilot will use `mcp_github_create_pull_request` to create the PR with proper issue linking.
+
+---
+
+### ✅ Success Criteria
+
+- Created a GitHub issue using Copilot + MCP (optional)
+- Created a PR using Copilot + MCP
+- PR description includes `Fixes #<issue-number>` for automatic linking
+- PR targets the `main` branch
+
+---
+
+💡 **Key Learning**: You're using MCP tools seamlessly from VS Code without leaving your editor - this is the power of integrated AI workflows!

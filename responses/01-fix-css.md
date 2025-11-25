@@ -1,44 +1,69 @@
 ---
 
-## Step 1: Fix the CSS Bug 🐛
+## Step 1: Investigate and Fix the CSS Bug �
 
 ### 🎯 Your Mission
 
-Fix the CSS stylesheet link in `index.html` so the World Clock displays with proper styling.
+Use **GitHub Copilot with MCP** to investigate why the World Clock styling is broken and fix it.
 
-### 🔍 The Problem
+### 🧠 Learning Focus
 
-The file `index.html` has a typo on line 7:
-```html
-<link rel="stylesheet" href="styls.css">
-```
-
-It should be:
-```html
-<link rel="stylesheet" href="styles.css">
-```
+This step teaches you how to:
+- Prompt Copilot to investigate styling issues
+- Use AI to identify file linking problems
+- Create branches and fix bugs with Copilot assistance
 
 ### 📋 Instructions
 
-1. **Create a new branch** for your fix:
-   ```bash
-   git checkout -b fix-css-link
-   ```
+**Part 1: Investigation with Copilot**
 
-2. **Open `index.html`** and fix the typo on line 7
+Open Copilot Chat and ask:
+```
+Copilot, I just opened my World Clock website and it looks completely broken - all the beautiful styling is missing and it's just plain HTML. Can you investigate what's wrong with the styling?
+```
 
-3. **Save, commit, and push**:
-   ```bash
-   git add index.html
-   git commit -m "Fix CSS stylesheet link typo"
-   git push -u origin fix-css-link
-   ```
-
-### ✅ Success Criteria
-
-- CSS link changed from `styls.css` to `styles.css`
-- Changes committed and pushed to a branch
+**Expected:** Copilot will analyze `index.html` and identify the typo in the CSS link on line 7.
 
 ---
 
-💡 **Tip**: You can also ask GitHub Copilot for help: "Can you fix the CSS link in index.html?"
+**Part 2: Create Hotfix Branch**
+
+Ask Copilot:
+```
+Perfect! Now let's create a hotfix branch to fix this CSS issue. Can you create a branch called 'hotfix/css-stylesheet-typo' and switch to it?
+```
+
+**Expected:** Copilot will create and switch to the new branch.
+
+---
+
+**Part 3: Fix the Bug**
+
+Ask Copilot:
+```
+Now let's fix the actual bug. Can you correct the CSS link in index.html from 'styls.css' to 'styles.css'? Please show me the change you're making.
+```
+
+**Expected:** Copilot will fix the typo and show you the change.
+
+---
+
+**Part 4: Commit and Push**
+
+Ask Copilot:
+```
+Great! Now let's commit this change and push it to the remote repository.
+```
+
+**Expected:** Copilot will commit and push your changes.
+
+### ✅ Success Criteria
+
+- Used Copilot to investigate the styling issue
+- Created a hotfix branch with Copilot's help
+- Fixed the CSS link from `styls.css` to `styles.css`
+- Committed and pushed changes to the branch
+
+---
+
+💡 **Key Learning**: You're directing Copilot step-by-step through a professional workflow - this is "AI as a tool" where you maintain control!
