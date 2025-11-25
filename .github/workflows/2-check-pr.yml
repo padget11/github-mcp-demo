@@ -1,0 +1,95 @@
+name: Step 2 - Validate Pull Request
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  validate-pr:
+    name: Check PR Creation and Linking
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Find exercise issue
+        id: find-issue
+        run: |
+          issue_number=$(gh issue list --label "step-2" --state open --json number --jq '.[0].number')
+          if [ -z "$issue_number" ]; then
+            echo "No step-2 issue found, skipping validation"
+            echo "found=false" >> $GITHUB_OUTPUT
+          else
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check CSS fix in PR
+        id: check-fix
+        run: |
+          if grep -q 'href="styles.css"' index.html; then
+            echo "valid=true" >> $GITHUB_OUTPUT
+            echo "✅ CSS link is correct in PR!"
+          else
+            echo "valid=false" >> $GITHUB_OUTPUT
+            echo "❌ CSS link still has typo in PR"
+          fi
+
+      - name: Check PR description for issue link
+        if: steps.find-issue.outputs.found == 'true'
+        id: check-link
+        run: |
+          pr_body="${{ github.event.pull_request.body }}"
+          if echo "$pr_body" | grep -qiE "(fixes|closes|resolves) #[0-9]+"; then
+            echo "linked=true" >> $GITHUB_OUTPUT
+            echo "✅ PR properly links to an issue"
+          else
+            echo "linked=false" >> $GITHUB_OUTPUT
+            echo "⚠️ PR should link to the original issue"
+          fi
+
+      - name: Success - PR is valid
+        if: steps.find-issue.outputs.found == 'true' && steps.check-fix.outputs.valid == 'true' && steps.check-link.outputs.linked == 'true'
+        run: |
+          gh issue comment ${{ steps.find-issue.outputs.issue_number }} \
+            --body-file responses/02-success-pr-created.md
+          gh issue close ${{ steps.find-issue.outputs.issue_number }}
+          
+          # Add success comment to PR
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "🎉 **Great work!** Your PR looks good! It has the CSS fix and properly links to an issue. You can now merge this PR to complete the exercise. Check the final issue for next steps!"
+          
+          # Create final step issue
+          gh issue create \
+            --title "Step 3: Merge and Celebrate! 🎊" \
+            --body-file responses/03-merge-pr.md \
+            --label "step-3"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Failure - Missing issue link
+        if: steps.find-issue.outputs.found == 'true' && steps.check-fix.outputs.valid == 'true' && steps.check-link.outputs.linked == 'false'
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "⚠️ **Almost there!** Your CSS fix looks good, but your PR description should link to the original issue using \`Fixes #<issue-number>\` or \`Closes #<issue-number>\`. This helps track which PR solves which issue!"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Failure - CSS not fixed
+        if: steps.find-issue.outputs.found == 'true' && steps.check-fix.outputs.valid == 'false'
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "❌ The CSS link still appears to be broken. Make sure you changed \`href=\"styls.css\"\` to \`href=\"styles.css\"\` in the index.html file."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
