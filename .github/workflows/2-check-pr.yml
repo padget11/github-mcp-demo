@@ -1,4 +1,4 @@
-name: Step 2 - Validate Pull Request
+name: Step 2 - Create PR
 
 on:
   pull_request:
@@ -9,29 +9,55 @@ on:
 
 permissions:
   contents: read
+  actions: write
   issues: write
   pull-requests: write
 
 jobs:
-  validate-pr:
-    name: Check PR Creation and Linking
+  find_exercise:
+    name: Find Exercise Issue
     runs-on: ubuntu-latest
+    outputs:
+      issue-number: ${{ steps.find-issue.outputs.issue_number }}
+      
+    steps:
+      - name: Find exercise issue
+        id: find-issue
+        run: |
+          issue_number=$(gh issue list --search "GitHub MCP Workflow Exercise in:title" --state open --json number --jq '.[0].number')
+          if [ -z "$issue_number" ]; then
+            echo "No exercise issue found"
+            exit 1
+          fi
+          echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  check_step_work:
+    name: Check PR Creation
+    runs-on: ubuntu-latest
+    needs: [find_exercise]
     
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Find exercise issue
-        id: find-issue
+      - name: Find last comment on issue
+        id: find-comment
         run: |
-          issue_number=$(gh issue list --search "Step 2: Create a Pull Request in:title" --state open --json number --jq '.[0].number')
-          if [ -z "$issue_number" ]; then
-            echo "No step-2 issue found, skipping validation"
-            echo "found=false" >> $GITHUB_OUTPUT
-          else
-            echo "found=true" >> $GITHUB_OUTPUT
-            echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
-          fi
+          comment_id=$(gh api \
+            "/repos/${{ github.repository }}/issues/${{ needs.find_exercise.outputs.issue-number }}/comments" \
+            --jq '.[-1].id')
+          echo "comment_id=$comment_id" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update comment - checking work
+        run: |
+          gh api \
+            --method PATCH \
+            "/repos/${{ github.repository }}/issues/comments/${{ steps.find-comment.outputs.comment_id }}" \
+            -f body="⏳ **Checking your Pull Request...**"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -40,55 +66,95 @@ jobs:
         run: |
           if grep -q 'href="styles.css"' index.html; then
             echo "valid=true" >> $GITHUB_OUTPUT
-            echo "✅ CSS link is correct in PR!"
           else
             echo "valid=false" >> $GITHUB_OUTPUT
-            echo "❌ CSS link still has typo in PR"
           fi
 
       - name: Check PR description for issue link
-        if: steps.find-issue.outputs.found == 'true'
         id: check-link
         run: |
           pr_body="${{ github.event.pull_request.body }}"
           if echo "$pr_body" | grep -qiE "(fixes|closes|resolves) #[0-9]+"; then
             echo "linked=true" >> $GITHUB_OUTPUT
-            echo "✅ PR properly links to an issue"
           else
             echo "linked=false" >> $GITHUB_OUTPUT
-            echo "⚠️ PR should link to the original issue"
           fi
 
-      - name: Success - PR is valid
-        if: steps.find-issue.outputs.found == 'true' && steps.check-fix.outputs.valid == 'true' && steps.check-link.outputs.linked == 'true'
+      - name: Update comment - results
         run: |
-          gh issue comment ${{ steps.find-issue.outputs.issue_number }} \
-            --body-file responses/02-success-pr-created.md
-          gh issue close ${{ steps.find-issue.outputs.issue_number }}
+          if [ "${{ steps.check-fix.outputs.valid }}" == "true" ]; then
+            fix_result="✅ Passed"
+          else
+            fix_result="❌ Failed"
+          fi
           
-          # Add success comment to PR
-          gh pr comment ${{ github.event.pull_request.number }} \
-            --body "🎉 **Great work!** Your PR looks good! It has the CSS fix and properly links to an issue. You can now merge this PR to complete the exercise. Check the final issue for next steps!"
+          if [ "${{ steps.check-link.outputs.linked }}" == "true" ]; then
+            link_result="✅ Passed"
+          else
+            link_result="⚠️  Missing"
+          fi
           
-          # Create final step issue
-          gh issue create \
-            --title "Step 3: Merge and Celebrate! 🎊" \
-            --body-file responses/03-merge-pr.md
+          gh api \
+            --method PATCH \
+            "/repos/${{ github.repository }}/issues/comments/${{ steps.find-comment.outputs.comment_id }}" \
+            -f body="## Step 2 Results
+
+| Check | Status |
+|-------|--------|
+| CSS link is fixed | $fix_result |
+| PR links to issue with \`Fixes #\` | $link_result |"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Failure - Missing issue link
-        if: steps.find-issue.outputs.found == 'true' && steps.check-fix.outputs.valid == 'true' && steps.check-link.outputs.linked == 'false'
+      - name: Comment on PR if needed
+        if: steps.check-fix.outputs.valid != 'true' || steps.check-link.outputs.linked != 'true'
         run: |
-          gh pr comment ${{ github.event.pull_request.number }} \
-            --body "⚠️ **Almost there!** Your CSS fix looks good, but your PR description should link to the original issue using \`Fixes #<issue-number>\` or \`Closes #<issue-number>\`. This helps track which PR solves which issue!"
+          if [ "${{ steps.check-fix.outputs.valid }}" != "true" ]; then
+            gh pr comment ${{ github.event.pull_request.number }} \
+              --body "❌ The CSS link still appears to be broken. Make sure you changed \`href=\"styls.css\"\` to \`href=\"styles.css\"\`"
+          elif [ "${{ steps.check-link.outputs.linked }}" != "true" ]; then
+            gh pr comment ${{ github.event.pull_request.number }} \
+              --body "⚠️ Your PR should link to the original issue using \`Fixes #<issue-number>\` or \`Closes #<issue-number>\` in the description!"
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Failure - CSS not fixed
-        if: steps.find-issue.outputs.found == 'true' && steps.check-fix.outputs.valid == 'false'
+      - name: Fail job if checks failed
+        if: steps.check-fix.outputs.valid != 'true' || steps.check-link.outputs.linked != 'true'
+        run: exit 1
+
+  post_completion:
+    name: Complete Exercise
+    needs: [find_exercise, check_step_work]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Comment - exercise complete
+        run: |
+          gh issue comment ${{ needs.find_exercise.outputs.issue-number }} \
+            --body "## 🎉 Congratulations! Exercise Complete!
+
+You've successfully:
+- ✅ Fixed the CSS bug
+- ✅ Created a properly linked Pull Request
+- ✅ Completed the GitHub MCP workflow!
+
+You can now merge your PR and close this issue. Great work! 🚀"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add success comment to PR
         run: |
           gh pr comment ${{ github.event.pull_request.number }} \
-            --body "❌ The CSS link still appears to be broken. Make sure you changed \`href=\"styls.css\"\` to \`href=\"styles.css\"\` in the index.html file."
+            --body "🎉 **Excellent work!** Your PR looks perfect! You can now merge this to complete the exercise."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Disable workflow
+        run: |
+          gh workflow disable "${{ github.workflow }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

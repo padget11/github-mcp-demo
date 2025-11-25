@@ -1,4 +1,4 @@
-name: Step 0 - Welcome
+name: Step 0 - Start Exercise
 
 on:
   push:
@@ -9,22 +9,22 @@ on:
 
 permissions:
   contents: write
+  actions: write
   issues: write
-  pull-requests: write
 
 jobs:
-  welcome:
-    name: Welcome to the GitHub MCP Workflow Demo
+  start_exercise:
+    name: Start GitHub MCP Exercise
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check if welcome issue exists
+      - name: Check if exercise issue exists
         id: check-issue
         run: |
-          issue_number=$(gh issue list --search "Welcome to GitHub MCP Workflow Demo in:title" --state open --json number --jq '.[0].number')
+          issue_number=$(gh issue list --search "GitHub MCP Workflow Exercise in:title" --state open --json number --jq '.[0].number')
           if [ -z "$issue_number" ]; then
             echo "exists=false" >> $GITHUB_OUTPUT
           else
@@ -34,12 +34,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create welcome issue
+      - name: Create exercise issue
         if: steps.check-issue.outputs.exists == 'false'
         id: create-issue
         run: |
           issue_url=$(gh issue create \
-            --title "Welcome to GitHub MCP Workflow Demo! 🎉" \
+            --title "🎓 GitHub MCP Workflow Exercise" \
             --body-file responses/00-welcome.md)
           issue_number=$(echo $issue_url | grep -o '[0-9]*$')
           echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
@@ -47,10 +47,31 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Comment on existing issue
-        if: steps.check-issue.outputs.exists == 'true'
+      - name: Set issue number
+        id: set-issue
         run: |
-          gh issue comment ${{ steps.check-issue.outputs.issue_number }} \
-            --body "👋 Welcome back! The exercise is ready to continue. Follow the instructions above to get started!"
+          if [ "${{ steps.check-issue.outputs.exists }}" == "true" ]; then
+            echo "issue_number=${{ steps.check-issue.outputs.issue_number }}" >> $GITHUB_OUTPUT
+          else
+            echo "issue_number=${{ steps.create-issue.outputs.issue_number }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post Step 1 instructions
+        run: |
+          gh issue comment ${{ steps.set-issue.outputs.issue_number }} \
+            --body-file responses/01-fix-css.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post watching message
+        run: |
+          gh issue comment ${{ steps.set-issue.outputs.issue_number }} \
+            --body "👀 I'm watching for your changes. When you push your CSS fix to a branch, I'll automatically check your work!"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable Step 1 workflow
+        run: |
+          gh workflow enable "Step 1 - Fix CSS"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

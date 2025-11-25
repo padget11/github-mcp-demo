@@ -1,4 +1,4 @@
-name: Step 1 - Validate CSS Fix
+name: Step 1 - Fix CSS
 
 on:
   push:
@@ -10,34 +10,58 @@ on:
 
 permissions:
   contents: read
+  actions: write
   issues: write
-  pull-requests: write
 
 jobs:
-  validate-css-fix:
-    name: Check CSS Link Correction
+  find_exercise:
+    name: Find Exercise Issue
     runs-on: ubuntu-latest
+    outputs:
+      issue-number: ${{ steps.find-issue.outputs.issue_number }}
+      
+    steps:
+      - name: Find exercise issue
+        id: find-issue
+        run: |
+          issue_number=$(gh issue list --search "GitHub MCP Workflow Exercise in:title" --state open --json number --jq '.[0].number')
+          if [ -z "$issue_number" ]; then
+            echo "No exercise issue found"
+            exit 1
+          fi
+          echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  check_step_work:
+    name: Check CSS Fix
+    runs-on: ubuntu-latest
+    needs: [find_exercise]
     
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Find exercise issue
-        id: find-issue
+      - name: Find last comment
+        id: find-comment
         run: |
-          issue_number=$(gh issue list --search "Step 1: Fix the CSS Bug in:title" --state open --json number --jq '.[0].number')
-          if [ -z "$issue_number" ]; then
-            echo "No step-1 issue found, skipping validation"
-            echo "found=false" >> $GITHUB_OUTPUT
-          else
-            echo "found=true" >> $GITHUB_OUTPUT
-            echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
-          fi
+          comment_id=$(gh api \
+            "/repos/${{ github.repository }}/issues/${{ needs.find_exercise.outputs.issue-number }}/comments" \
+            --jq '.[-1].id')
+          echo "comment_id=$comment_id" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update comment - checking work
+        run: |
+          gh api \
+            --method PATCH \
+            "/repos/${{ github.repository }}/issues/comments/${{ steps.find-comment.outputs.comment_id }}" \
+            -f body="⏳ **Checking your work...**"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Validate CSS link fix
-        if: steps.find-issue.outputs.found == 'true'
         id: validate
         run: |
           if grep -q 'href="styles.css"' index.html; then
@@ -48,24 +72,69 @@ jobs:
             echo "❌ CSS link still has typo"
           fi
 
-      - name: Success - CSS fixed
-        if: steps.find-issue.outputs.found == 'true' && steps.validate.outputs.valid == 'true'
+      - name: Update comment - results
         run: |
-          gh issue comment ${{ steps.find-issue.outputs.issue_number }} \
-            --body-file responses/01-success-css-fixed.md
-          gh issue close ${{ steps.find-issue.outputs.issue_number }}
+          if [ "${{ steps.validate.outputs.valid }}" == "true" ]; then
+            result="✅ Passed"
+          else
+            result="❌ Failed"
+          fi
           
-          # Create the next step issue
-          gh issue create \
-            --title "Step 2: Create a Pull Request 🔀" \
+          gh api \
+            --method PATCH \
+            "/repos/${{ github.repository }}/issues/comments/${{ steps.find-comment.outputs.comment_id }}" \
+            -f body="## Step 1 Results
+
+| Check | Status |
+|-------|--------|
+| CSS link corrected to \`styles.css\` | $result |"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fail job if check failed
+        if: steps.validate.outputs.valid != 'true'
+        run: |
+          gh issue comment ${{ needs.find_exercise.outputs.issue-number }} \
+            --body-file responses/01-error-css-not-fixed.md
+          exit 1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  post_next_step:
+    name: Post Next Step
+    needs: [find_exercise, check_step_work]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Comment - step finished
+        run: |
+          gh issue comment ${{ needs.find_exercise.outputs.issue-number }} \
+            --body "## ✅ Step 1 Complete!
+
+Great job! You've successfully fixed the CSS link. Let's move on to the next step..."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post Step 2 instructions
+        run: |
+          gh issue comment ${{ needs.find_exercise.outputs.issue-number }} \
             --body-file responses/02-create-pr.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Failure - CSS still broken
-        if: steps.find-issue.outputs.found == 'true' && steps.validate.outputs.valid == 'false'
+      - name: Post watching message
         run: |
-          gh issue comment ${{ steps.find-issue.outputs.issue_number }} \
-            --body-file responses/01-error-css-not-fixed.md
+          gh issue comment ${{ needs.find_exercise.outputs.issue-number }} \
+            --body "👀 I'm watching for your Pull Request. When you create it, I'll check your work!"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Disable current and enable next workflow
+        run: |
+          gh workflow disable "${{ github.workflow }}"
+          gh workflow enable "Step 2 - Create PR"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
