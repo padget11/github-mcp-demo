@@ -72,6 +72,6 @@ jobs:
 
       - name: Enable Step 1 workflow
         run: |
-          gh workflow enable "Step 1 - Fix CSS"
+          gh workflow enable 1-fix-css.yml
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

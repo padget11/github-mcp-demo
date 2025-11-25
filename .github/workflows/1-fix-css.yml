@@ -136,7 +136,7 @@ Great job! You've successfully fixed the CSS link. Let's move on to the next ste
 
       - name: Disable current and enable next workflow
         run: |
-          gh workflow disable "${{ github.workflow }}"
-          gh workflow enable "Step 2 - Create PR"
+          gh workflow disable 1-fix-css.yml
+          gh workflow enable 2-check-pr.yml
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

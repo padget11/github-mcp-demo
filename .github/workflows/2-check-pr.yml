@@ -157,6 +157,6 @@ You can now merge your PR and close this issue. Great work! 🚀"
 
       - name: Disable workflow
         run: |
-          gh workflow disable "${{ github.workflow }}"
+          gh workflow disable 2-check-pr.yml
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
