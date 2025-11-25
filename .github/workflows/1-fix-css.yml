@@ -80,14 +80,16 @@ jobs:
             result="❌ Failed"
           fi
           
+          body="## Step 1 Results
+
+          | Check | Status |
+          |-------|--------|
+          | CSS link corrected to \\\`styles.css\\\` | $result |"
+          
           gh api \
             --method PATCH \
             "/repos/${{ github.repository }}/issues/comments/${{ steps.find-comment.outputs.comment_id }}" \
-            -f body="## Step 1 Results
-
-| Check | Status |
-|-------|--------|
-| CSS link corrected to \`styles.css\` | $result |"
+            -f body="$body"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -94,15 +94,17 @@ jobs:
             link_result="⚠️  Missing"
           fi
           
+          body="## Step 2 Results
+
+          | Check | Status |
+          |-------|--------|
+          | CSS link is fixed | $fix_result |
+          | PR links to issue with \\\`Fixes #\\\` | $link_result |"
+          
           gh api \
             --method PATCH \
             "/repos/${{ github.repository }}/issues/comments/${{ steps.find-comment.outputs.comment_id }}" \
-            -f body="## Step 2 Results
-
-| Check | Status |
-|-------|--------|
-| CSS link is fixed | $fix_result |
-| PR links to issue with \`Fixes #\` | $link_result |"
+            -f body="$body"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
