@@ -4,8 +4,11 @@ on:
   push:
     branches:
       - main
-      - workflow-test
+    paths:
+      - '.github/workflows/0-welcome.yml'
   workflow_dispatch:
+  repository_dispatch:
+    types: [start-exercise]
 
 permissions:
   contents: write
@@ -14,71 +17,68 @@ permissions:
 
 jobs:
   start_exercise:
-    name: Start GitHub MCP Exercise
+    name: Start Exercise
+    uses: skills/exercise-toolkit/.github/workflows/start-exercise.yml@v0.7.3
+    with:
+      exercise-title: "🎓 GitHub MCP Workflow Exercise"
+      intro-message-file: responses/00-welcome.md
+    permissions:
+      contents: write
+      issues: write
+
+  post_step_instructions:
+    name: Post Step Instructions
+    needs: [start_exercise]
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check if exercise issue exists
-        id: check-issue
-        run: |
-          issue_number=$(gh issue list --search "GitHub MCP Workflow Exercise in:title" --state open --json number --jq '.[0].number')
-          if [ -z "$issue_number" ]; then
-            echo "exists=false" >> $GITHUB_OUTPUT
-          else
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get response templates
+        uses: actions/checkout@v4
+        with:
+          repository: skills/exercise-toolkit
+          path: exercise-toolkit
+          ref: v0.7.3
 
-      - name: Create exercise issue
-        if: steps.check-issue.outputs.exists == 'false'
-        id: create-issue
-        run: |
-          issue_url=$(gh issue create \
-            --title "🎓 GitHub MCP Workflow Exercise" \
-            --body-file responses/00-welcome.md)
-          issue_number=$(echo $issue_url | grep -o '[0-9]*$')
-          echo "issue_number=$issue_number" >> $GITHUB_OUTPUT
-          echo "Created issue #$issue_number"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create comment - add step content
+        uses: GrantBirki/comment@v2.1.1
+        with:
+          issue-number: ${{ needs.start_exercise.outputs.issue-number }}
+          file: responses/01-fix-css.md
 
-      - name: Set issue number
-        id: set-issue
-        run: |
-          if [ "${{ steps.check-issue.outputs.exists }}" == "true" ]; then
-            echo "issue_number=${{ steps.check-issue.outputs.issue_number }}" >> $GITHUB_OUTPUT
-          else
-            echo "issue_number=${{ steps.create-issue.outputs.issue_number }}" >> $GITHUB_OUTPUT
-          fi
+      - name: Create comment - watching for progress
+        uses: GrantBirki/comment@v2.1.1
+        with:
+          issue-number: ${{ needs.start_exercise.outputs.issue-number }}
+          body: "👀 I'm watching for your changes. When you push your CSS fix to a branch, I'll automatically check your work!"
 
-      - name: Post Step 1 instructions
-        run: |
-          gh issue comment ${{ steps.set-issue.outputs.issue_number }} \
-            --body-file responses/01-fix-css.md
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Post watching message
-        run: |
-          gh issue comment ${{ steps.set-issue.outputs.issue_number }} \
-            --body "👀 I'm watching for your changes. When you push your CSS fix to a branch, I'll automatically check your work!"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Enable Step 1 workflow
+      - name: Enable next step workflow
         run: |
           gh workflow enable 1-fix-css.yml
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  update_readme:
-    name: Update README
-    needs: [start_exercise]
-    uses: ./.github/workflows/update-readme.yml
-    with:
-      step: 1
+      - name: Build README from template
+        id: build-readme
+        uses: skills/action-text-variables@v3
+        with:
+          template-file: .github/readme-templates/step-1.md
+
+      - name: Update README file
+        run: echo "$README_CONTENT" > README.md
+        env:
+          README_CONTENT: ${{ steps.build-readme.outputs.updated-text }}
+
+      - name: Commit README changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update README for step 1"
+            git push
+          fi

@@ -114,30 +114,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Comment - step finished
-        run: |
-          body="## ✅ Step 1 Complete!
+      - name: Get response templates
+        uses: actions/checkout@v4
+        with:
+          repository: skills/exercise-toolkit
+          path: exercise-toolkit
+          ref: v0.7.3
 
-          Great job! You've successfully fixed the CSS link. Let's move on to the next step..."
-          
-          gh issue comment ${{ needs.find_exercise.outputs.issue-number }} \
-            --body "$body"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create comment - step finished
+        uses: GrantBirki/comment@v2.1.1
+        with:
+          issue-number: ${{ needs.find_exercise.outputs.issue-number }}
+          body: |
+            ## ✅ Step 1 Complete!
 
-      - name: Post Step 2 instructions
-        run: |
-          gh issue comment ${{ needs.find_exercise.outputs.issue-number }} \
-            --body-file responses/02-create-pr.md
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            Great job! You've successfully fixed the CSS link. Let's move on to the next step...
 
-      - name: Post watching message
-        run: |
-          gh issue comment ${{ needs.find_exercise.outputs.issue-number }} \
-            --body "👀 I'm watching for your Pull Request. When you create it, I'll check your work!"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create comment - add step content
+        uses: GrantBirki/comment@v2.1.1
+        with:
+          issue-number: ${{ needs.find_exercise.outputs.issue-number }}
+          file: responses/02-create-pr.md
+
+      - name: Create comment - watching for progress
+        uses: GrantBirki/comment@v2.1.1
+        with:
+          issue-number: ${{ needs.find_exercise.outputs.issue-number }}
+          body: "👀 I'm watching for your Pull Request. When you create it, I'll check your work!"
 
       - name: Disable current and enable next workflow
         run: |
@@ -146,9 +149,28 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  update_readme:
-    name: Update README
-    needs: [post_next_step]
-    uses: ./.github/workflows/update-readme.yml
-    with:
-      step: 2
+      - name: Switch to main branch
+        run: git checkout main
+
+      - name: Build README from template
+        id: build-readme
+        uses: skills/action-text-variables@v3
+        with:
+          template-file: .github/readme-templates/step-2.md
+
+      - name: Update README file
+        run: echo "$README_CONTENT" > README.md
+        env:
+          README_CONTENT: ${{ steps.build-readme.outputs.updated-text }}
+
+      - name: Commit README changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update README for step 2"
+            git push
+          fi

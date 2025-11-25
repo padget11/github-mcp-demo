@@ -136,28 +136,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Comment - exercise complete
-        run: |
-          body="## 🎉 Congratulations! Exercise Complete!
+      - name: Get response templates
+        uses: actions/checkout@v4
+        with:
+          repository: skills/exercise-toolkit
+          path: exercise-toolkit
+          ref: v0.7.3
 
-          You've successfully:
-          - ✅ Fixed the CSS bug
-          - ✅ Created a properly linked Pull Request
-          - ✅ Completed the GitHub MCP workflow!
+      - name: Create comment - exercise complete
+        uses: GrantBirki/comment@v2.1.1
+        with:
+          issue-number: ${{ needs.find_exercise.outputs.issue-number }}
+          body: |
+            ## 🎉 Congratulations! Exercise Complete!
 
-          You can now merge your PR and close this issue. Great work! 🚀"
-          
-          gh issue comment ${{ needs.find_exercise.outputs.issue-number }} \
-            --body "$body"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            You've successfully:
+            - ✅ Fixed the CSS bug
+            - ✅ Created a properly linked Pull Request
+            - ✅ Completed the GitHub MCP workflow!
 
-      - name: Add success comment to PR
-        run: |
-          gh pr comment ${{ github.event.pull_request.number }} \
-            --body "🎉 **Excellent work!** Your PR looks perfect! You can now merge this to complete the exercise."
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            You can now merge your PR and close this issue. Great work! 🚀
+
+      - name: Create comment - PR success
+        uses: GrantBirki/comment@v2.1.1
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: "🎉 **Excellent work!** Your PR looks perfect! You can now merge this to complete the exercise."
 
       - name: Disable workflow
         run: |
@@ -165,9 +169,30 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  update_readme:
-    name: Update README
-    needs: [post_completion]
-    uses: ./.github/workflows/update-readme.yml
-    with:
-      step: 3
+      - name: Switch to main branch
+        run: |
+          git fetch origin main
+          git checkout main
+
+      - name: Build README from template
+        id: build-readme
+        uses: skills/action-text-variables@v3
+        with:
+          template-file: .github/readme-templates/step-3.md
+
+      - name: Update README file
+        run: echo "$README_CONTENT" > README.md
+        env:
+          README_CONTENT: ${{ steps.build-readme.outputs.updated-text }}
+
+      - name: Commit README changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update README for step 3"
+            git push
+          fi
