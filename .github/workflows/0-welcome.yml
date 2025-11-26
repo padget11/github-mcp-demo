@@ -20,11 +20,29 @@ jobs:
     name: Start Exercise
     uses: skills/exercise-toolkit/.github/workflows/start-exercise.yml@v0.7.3
     with:
-      exercise-title: "🎓 GitHub MCP Workflow Exercise"
-      intro-message-file: responses/00-welcome.md
+      exercise-title: "GitHub MCP Workflow Exercise"
+      intro-message: |
+        This is a **hands-on learning experience** where you'll discover how to **use GitHub Copilot with MCP tools** to streamline your entire development workflow.
+
+        ### 🎯 What You'll Learn
+
+        This exercise teaches you how to **prompt Copilot** to:
+        - 🔍 Investigate and diagnose code issues
+        - 🌿 Create branches using git commands
+        - 🛠️ Make code fixes and commits
+        - 📝 Create GitHub issues via MCP tools
+        - 🔀 Create Pull Requests via MCP tools
+        - ✅ Complete the full DevOps cycle from VS Code
+
+        ### 🐛 The Challenge
+
+        This World Clock application has a **critical styling bug** - the CSS isn't loading! You'll use Copilot to investigate, fix, and deploy the solution.
+
+        💡 **Ready to start?** Scroll down for Step 1 instructions! 👇
     permissions:
       contents: write
       issues: write
+      actions: write
 
   post_step_instructions:
     name: Post Step Instructions
